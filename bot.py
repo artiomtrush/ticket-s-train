@@ -1,4 +1,5 @@
 import requests
+import os
 from bs4 import BeautifulSoup
 from telegram import Update
 from telegram.ext import (
@@ -7,7 +8,7 @@ from telegram.ext import (
     ContextTypes
 )
 
-TOKEN = "ТВОЙ_TELEGRAM_TOKEN"
+TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0"
