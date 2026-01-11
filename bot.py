@@ -1,46 +1,9 @@
-import requests
 import os
-from bs4 import BeautifulSoup
 from telegram import Update
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    ContextTypes
-)
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from parser import parse_tickets  # импортируем функцию
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0"
-}
-
-def parse_tickets(date, train_number):
-    url = (
-        "https://pass.rw.by/ru/route/?"
-        "from=%D0%9C%D0%B8%D0%BD%D1%81%D0%BA&from_exp=2100000&"
-        "to=%D0%9C%D0%BE%D0%B7%D1%8B%D1%80%D1%8C&to_exp=2100254&"
-        f"date={date}&type=1"
-    )
-
-    response = requests.get(url, headers=HEADERS, timeout=15)
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    train = soup.find("div", class_="sch-table__row", attrs={"data-train-number": train_number})
-    if not train:
-        return "❌ Поезд не найден"
-
-    ticket_items = train.find_all("div", class_="sch-table__t-item")
-    if not ticket_items:
-        return "❌ Мест нет"
-
-    result = []
-    for item in ticket_items:
-        name = item.find("div", class_="sch-table__t-name").text.strip()
-        prices = item.find_all("span", class_="ticket-cost")
-        for price in prices:
-            result.append(f"• {name}: {price.text.strip()} BYN")
-
-    return "💺 Найдены билеты:\n" + "\n".join(result)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -59,12 +22,18 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
     date, train_number = context.args
     await update.message.reply_text("🔍 Ищу билеты...")
 
-    try:
-        result = parse_tickets(date, train_number)
-    except Exception as e:
-        result = f"⚠️ Ошибка: {e}"
+    prices, info = parse_tickets(date, train_number)
 
-    await update.message.reply_text(result)
+    if not prices and info:
+        await update.message.reply_text(f"❌ {info}")
+        return
+
+    text = f"🚆 Поезд {train_number}\n📅 Дата: {date}\n💺 Билеты:\n"
+    for p in prices:
+        text += f"💰 {p} BYN\n"
+    text += f"\n🔗 {info}"
+
+    await update.message.reply_text(text)
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
