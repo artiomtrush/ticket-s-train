@@ -1,11 +1,12 @@
 import os
+import asyncio
 from telegram import Bot, Update
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     ContextTypes,
 )
-from parser import parse_tickets
+from parser import parse_tickets  # твой парсер билетов
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHECK_INTERVAL = 300  # 5 минут
@@ -86,10 +87,11 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⛔ Поиск билетов остановлен.")
 
 # ---------- main ----------
-async def main():
+def main():
     # --- Очистка старых обновлений ---
     bot = Bot(token=TOKEN)
-    await bot.delete_webhook(drop_pending_updates=True)  # <-- await!
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(bot.delete_webhook(drop_pending_updates=True))
 
     # --- Создание приложения ---
     app = ApplicationBuilder().token(TOKEN).build()
@@ -100,9 +102,8 @@ async def main():
     app.add_handler(CommandHandler("stop", stop))
 
     print("Бот запущен...")
-    await app.run_polling()
+    # --- Запуск polling ---
+    app.run_polling()  # не используем asyncio.run()
 
-# --- Запуск ---
-import asyncio
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
