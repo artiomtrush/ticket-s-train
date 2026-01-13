@@ -1,5 +1,5 @@
 import os
-from telegram import Update
+from telegram import Bot, Update
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
