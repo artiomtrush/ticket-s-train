@@ -94,8 +94,14 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ---------- main ----------
 def main():
+    # --- Очистка старых обновлений ---
+    bot = Bot(token=TOKEN)
+    bot.delete_webhook(drop_pending_updates=True)
+
+    # --- Создание приложения ---
     app = ApplicationBuilder().token(TOKEN).build()
 
+    # --- Хэндлеры команд ---
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("find", find))
     app.add_handler(CommandHandler("stop", stop))
