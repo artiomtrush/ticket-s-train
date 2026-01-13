@@ -1,7 +1,8 @@
+import asyncio
 import os
-from telegram import Update, Bot
+from telegram import Bot, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from parser import parse_tickets  # твой модуль
+from parser import parse_tickets
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHECK_INTERVAL = 300
@@ -93,9 +94,13 @@ async def main_async():
     print("Бот запущен...")
     await app.run_polling(drop_pending_updates=True)
 
-# ---------- Для Railway просто запускаем через asyncio.create_task ----------
+# ---------- Запуск на Railway ----------
 if __name__ == "__main__":
-    import asyncio
+    try:
+        # Получаем уже работающий loop или создаём новый
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
-    # Railway уже запускает свой event loop, поэтому используем create_task
-    asyncio.get_event_loop().create_task(main_async())
+    loop.create_task(main_async())
