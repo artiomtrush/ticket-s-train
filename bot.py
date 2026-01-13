@@ -1,6 +1,5 @@
 import os
-import asyncio
-from telegram import Bot, Update
+from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -53,9 +52,11 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
     date, train_number = context.args
     chat_id = update.effective_chat.id
 
+    # удаляем старые задачи для этого чата
     for job in context.job_queue.get_jobs_by_name(str(chat_id)):
         job.schedule_removal()
 
+    # создаём новую задачу
     context.job_queue.run_repeating(
         check_tickets_job,
         interval=CHECK_INTERVAL,
@@ -88,22 +89,4 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ---------- main ----------
 def main():
-    # --- Очистка старых обновлений ---
-    bot = Bot(token=TOKEN)
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(bot.delete_webhook(drop_pending_updates=True))
-
-    # --- Создание приложения ---
-    app = ApplicationBuilder().token(TOKEN).build()
-
-    # --- Хэндлеры команд ---
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("find", find))
-    app.add_handler(CommandHandler("stop", stop))
-
-    print("Бот запущен...")
-    # --- Запуск polling ---
-    app.run_polling()  # не используем asyncio.run()
-
-if __name__ == "__main__":
-    main()
+    if not TOKEN:
