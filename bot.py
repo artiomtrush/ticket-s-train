@@ -5,7 +5,7 @@ from telegram.ext import (
     CommandHandler,
     ContextTypes,
 )
-from parser import parse_tickets
+from parser import parse_tickets  # твой парсер билетов
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHECK_INTERVAL = 300  # 5 минут
@@ -94,7 +94,7 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ---------- main ----------
 def main():
-    # --- Очистка старых обновлений ---
+    # --- Очистка старых обновлений и webhook, чтобы не было конфликта ---
     bot = Bot(token=TOKEN)
     bot.delete_webhook(drop_pending_updates=True)
 
