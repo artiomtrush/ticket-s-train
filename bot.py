@@ -5,7 +5,7 @@ from telegram.ext import (
     CommandHandler,
     ContextTypes,
 )
-from parser import parse_tickets  # твой парсер билетов
+from parser import parse_tickets
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHECK_INTERVAL = 300  # 5 минут
@@ -41,8 +41,6 @@ async def check_tickets_job(context: ContextTypes.DEFAULT_TYPE):
         text += f"\n🔗 {info}"
 
         await context.bot.send_message(chat_id=chat_id, text=text)
-
-        # ⛔ Останавливаем задачу после нахождения билетов
         job.schedule_removal()
 
 # ---------- /find ----------
@@ -54,21 +52,16 @@ async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
     date, train_number = context.args
     chat_id = update.effective_chat.id
 
-    # Удаляем старую задачу, если была
     for job in context.job_queue.get_jobs_by_name(str(chat_id)):
         job.schedule_removal()
 
-    # Создаём периодическую задачу
     context.job_queue.run_repeating(
         check_tickets_job,
         interval=CHECK_INTERVAL,
         first=1,
         chat_id=chat_id,
         name=str(chat_id),
-        data={
-            "date": date,
-            "train_number": train_number,
-        },
+        data={"date": date, "train_number": train_number},
     )
 
     await update.message.reply_text(
@@ -93,10 +86,10 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⛔ Поиск билетов остановлен.")
 
 # ---------- main ----------
-def main():
-    # --- Очистка старых обновлений и webhook, чтобы не было конфликта ---
+async def main():
+    # --- Очистка старых обновлений ---
     bot = Bot(token=TOKEN)
-    bot.delete_webhook(drop_pending_updates=True)
+    await bot.delete_webhook(drop_pending_updates=True)  # <-- await!
 
     # --- Создание приложения ---
     app = ApplicationBuilder().token(TOKEN).build()
@@ -107,7 +100,9 @@ def main():
     app.add_handler(CommandHandler("stop", stop))
 
     print("Бот запущен...")
-    app.run_polling()
+    await app.run_polling()
 
+# --- Запуск ---
+import asyncio
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
