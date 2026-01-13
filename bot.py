@@ -90,3 +90,19 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ---------- main ----------
 def main():
     if not TOKEN:
+        raise ValueError("❌ TELEGRAM_TOKEN не задан!")  # <-- блок с отступом 4 пробела
+
+    # создаём приложение
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    # добавляем обработчики команд
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("find", find))
+    app.add_handler(CommandHandler("stop", stop))
+
+    print("Бот запущен...")
+    # ✅ drop_pending_updates=True убирает все старые апдейты и предотвращает конфликт
+    app.run_polling(drop_pending_updates=True)
+
+if __name__ == "__main__":
+    main()
