@@ -1,55 +1,79 @@
 import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from parser import parse_tickets  # импортируем функцию поиска билетов
+import asyncio
+import time
+import requests
+from bs4 import BeautifulSoup
+from telegram.ext import Application
 
-# Токен бота
-TOKEN = os.getenv("TELEGRAM_TOKEN")  # убедись, что TELEGRAM_TOKEN задан на Railway
+# ====== НАСТРОЙКИ ======
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
-# Команда /start
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🚆 Бот поиска билетов\n\n"
-        "Команда:\n"
-        "/find ДАТА НОМЕР_ПОЕЗДА\n"
-        "Пример:\n"
-        "/find 2025-10-18 876Б"
-    )
+CHECK_INTERVAL = 300  # 5 минут
 
-# Команда /find
-async def find(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if len(context.args) != 2:
-        await update.message.reply_text("❗ Используй: /find 2025-10-18 876Б")
-        return
+TRIP_DATE = "2025-10-18"
+TRAIN_NUMBER = "874Щ"
 
-    date, train_number = context.args
-    await update.message.reply_text("🔍 Ищу билеты...")
+URL = (
+    "https://pass.rw.by/ru/route/?"
+    "from=%D0%9C%D0%B8%D0%BD%D1%81%D0%BA&from_exp=2100000&from_esr=140210&"
+    "to=%D0%9C%D0%BE%D0%B7%D1%8B%D1%80%D1%8C&to_exp=2100254&to_esr=151605&"
+    f"date={TRIP_DATE}&type=1"
+)
 
-    # вызываем функцию из parser.py
-    prices, info = parse_tickets(date, train_number)
+HEADERS = {
+    "User-Agent": "Mozilla/5.0"
+}
 
-    if not prices and info:
-        await update.message.reply_text(f"❌ {info}")
-        return
+# ======================
 
-    text = f"🚆 Поезд {train_number}\n📅 Дата: {date}\n💺 Билеты:\n"
-    for p in prices:
-        text += f"💰 {p} BYN\n"
-    text += f"\n🔗 {info}"
+def check_train():
+    response = requests.get(URL, headers=HEADERS, timeout=20)
+    response.raise_for_status()
 
-    await update.message.reply_text(text)
+    soup = BeautifulSoup(response.text, "html.parser")
+    train = soup.find("div", class_="sch-table__row", attrs={"data-train-number": TRAIN_NUMBER})
 
-# Главная функция
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
+    if not train:
+        print("Поезд не найден")
+        return None
 
-    # Регистрируем обработчики
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("find", find))
+    tickets = train.find("div", class_="sch-table__tickets")
+    no_tickets = train.find("div", class_="sch-table__no-info")
 
-    # Запуск бота
-    print("Бот запущен...")
-    app.run_polling()
+    if tickets and not no_tickets:
+        price_el = tickets.find("span", class_="ticket-cost")
+        price = price_el.text.strip() if price_el else "неизвестно"
+
+        return (
+            f"🚆 Минск → Мозырь\n"
+            f"💺 Билеты появились!\n"
+            f"Цена: {price} BYN\n\n"
+            f"{URL}"
+        )
+
+    print(f"[{time.strftime('%H:%M:%S')}] Билетов нет")
+    return None
+
+
+async def main():
+    if not TOKEN:
+        raise RuntimeError("❌ TELEGRAM_TOKEN не задан")
+
+    app = Application.builder().token(TOKEN).build()
+
+    print("✅ Бот запущен и ждёт билеты")
+
+    while True:
+        try:
+            message = check_train()
+            if message:
+                await app.bot.send_message(chat_id=CHAT_ID, text=message)
+        except Exception as e:
+            print("Ошибка:", e)
+
+        await asyncio.sleep(CHECK_INTERVAL)
+
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
