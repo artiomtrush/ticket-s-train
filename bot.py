@@ -1,5 +1,6 @@
 import os
-from telegram.ext import Application, CommandHandler, ContextTypes, Update
+from telegram import Update
+from telegram.ext import Application, CommandHandler, ContextTypes
 from parser import parse_tickets
 import asyncio
 
